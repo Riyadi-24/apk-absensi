@@ -60,6 +60,12 @@ async function verifyToken(token, secret) {
   }
 }
 
+async function hashPassword(password) {
+  const enc = new TextEncoder().encode(password)
+  const hashArr = await crypto.subtle.digest('SHA-256', enc)
+  return Array.from(new Uint8Array(hashArr)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 // ============================================================
 // MIDDLEWARE AUTENTIKASI
 // ============================================================
@@ -79,6 +85,37 @@ async function authMiddleware(c, next, requiredRole) {
   c.set('user', payload)
   await next()
 }
+
+// ===========================================
+// ROUTE: Login Tradisional (NIK + Password)
+// ===========================================
+app.post('/login', async (c) => {
+  try {
+    const { nik, password } = await c.req.json()
+    if (!nik || !password) return c.json({ error: 'NIK dan Password wajib diisi' }, 400)
+
+    const pegawai = await c.env.DB.prepare('SELECT * FROM pegawai WHERE nik = ?').bind(nik).first()
+    if (!pegawai) return c.json({ error: 'NIK tidak ditemukan' }, 404)
+
+    if (!pegawai.password_hash) {
+      return c.json({ error: 'Login biometrik wajib untuk akun ini. Silakan gunakan sidik jari.' }, 400)
+    }
+
+    const inputHash = await hashPassword(password)
+    if (inputHash !== pegawai.password_hash) {
+      return c.json({ error: 'Kata sandi salah' }, 401)
+    }
+
+    const token = await generateToken(
+      { sub: pegawai.id, nik: pegawai.nik, nama: pegawai.nama, role: pegawai.role },
+      c.env.JWT_SECRET || 'default-secret-ganti-ini'
+    )
+
+    return c.json({ success: true, token, user: pegawai })
+  } catch (err) {
+    return c.json({ error: 'Gagal login', detail: String(err) }, 500)
+  }
+})
 
 // ===========================================
 // ROUTE: WebAuthn - Mulai Registrasi
@@ -240,9 +277,10 @@ app.get('/admin/pegawai', (c) => authMiddleware(c, async () => {
 }, 'admin'))
 
 app.post('/admin/pegawai', (c) => authMiddleware(c, async () => {
-    const { nama, nik, role } = await c.req.json()
+    const { nama, nik, role, password } = await c.req.json()
     const id = generateId()
-    await c.env.DB.prepare('INSERT INTO pegawai (id, nama, nik, role) VALUES (?, ?, ?, ?)').bind(id, nama, nik, role || 'karyawan').run()
+    const passHash = password ? await hashPassword(password) : null
+    await c.env.DB.prepare('INSERT INTO pegawai (id, nama, nik, role, password_hash) VALUES (?, ?, ?, ?, ?)').bind(id, nama, nik, role || 'karyawan', passHash).run()
     return c.json({ success: true, message: 'Pegawai ditambahkan' })
 }, 'admin'))
 

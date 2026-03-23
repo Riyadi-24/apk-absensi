@@ -113,17 +113,35 @@
       <div class="card rounded-2xl p-6 shadow-2xl space-y-4">
         <div>
           <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">NIK Karyawan</label>
-          <input id="login-nik" type="text" maxlength="20" placeholder="Masukkan NIK Anda..."
+          <input id="login-nik" type="text" maxlength="20" placeholder="Masukkan NIK (ADM001)..."
             class="mt-1.5 w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Kata Sandi</label>
+          <input id="login-password" type="password" placeholder="admin123..."
+            class="mt-1.5 w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+        </div>
+
+        <!-- Tombol Login Tradisional -->
+        <button id="btn-login" onclick="app.loginTradisional()"
+          class="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-blue-500/25 active:scale-95">
+          Login Masuk
+        </button>
+
+        <div class="relative flex py-2 items-center">
+            <div class="flex-grow border-t border-slate-700"></div>
+            <span class="flex-shrink mx-4 text-slate-500 text-xs uppercase">Atau</span>
+            <div class="flex-grow border-t border-slate-700"></div>
         </div>
 
         <!-- Tombol Login dengan Sidik Jari -->
         <button id="btn-login-biometrik" onclick="app.loginBiometrik()"
-          class="relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-blue-500/25 active:scale-95">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          class="w-full flex items-center justify-center gap-3 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-all duration-200 active:scale-95">
+          <svg class="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 6.65c.22.18.25.5.07.72-.18.22-.5.25-.72.07-2.86-2.36-6.52-2.35-9.25-.01C7 7.13 6.08 7.77 5.15 9.5c-.84 1.5-2.31 3.48-1.65 0zm4.96 12.09c-.1 0-.2-.03-.29-.09-1.6-1.13-2.94-2.65-3.92-4.48C3.35 15.15 3 13.12 3 11c0-2.76 2.93-5.06 6.53-5.06 2.24 0 4.29.81 5.56 2.17 1.21 1.3 1.78 2.99 1.55 4.65-.09.66-.32 1.3-.68 1.87-.71 1.12-1.84 1.79-3.07 1.87-1.56.1-3.05-.78-3.72-2.26-.22-.47-.3-.97-.24-1.47.12-.94.7-1.78 1.57-2.27.46-.26 1.08.09 1.08.62 0 .27-.14.52-.38.65-.56.31-.94.82-1.02 1.4-.04.34 0 .67.12.98.43 1 1.44 1.62 2.5 1.55.87-.06 1.65-.54 2.13-1.33.26-.41.42-.87.48-1.34.17-1.28-.28-2.6-1.24-3.63-1.05-1.13-2.78-1.8-4.65-1.8C6.04 7.94 4 9.93 4 11c0 1.93.31 3.77 1.16 5.37.87 1.62 2.07 2.98 3.52 4 .23.16.28.47.12.7-.1.14-.25.21-.41.21l.07-.27zm10.78-5.58c-.1 0-.2-.03-.29-.09-1.16-.82-2.07-1.76-2.69-2.8l-.06-.1c-.55-.94-.9-2.06-.9-3.15v-1.5c0-.28.22-.5.5-.5s.5.22.5.5V10c0 .89.29 1.83.77 2.62l.06.1c.54.91 1.37 1.77 2.41 2.49.23.16.28.47.12.7-.1.14-.25.21-.41.21l-.01-.09z"/>
           </svg>
-          Login dengan Sidik Jari
+          Login dengan Biometrik
         </button>
 
         <div class="text-center text-slate-500 text-xs">

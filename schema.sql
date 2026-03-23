@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS pegawai (
   id            TEXT PRIMARY KEY,          -- UUID
   nama          TEXT NOT NULL,
   nik           TEXT NOT NULL UNIQUE,      -- Nomor Induk Karyawan
+  password_hash TEXT,                      -- Kata Sandi (Opsional, pendamping Biometrik)
   role          TEXT NOT NULL DEFAULT 'karyawan' CHECK(role IN ('admin', 'karyawan')),
   departemen    TEXT,
   email         TEXT UNIQUE,
@@ -63,7 +64,8 @@ CREATE INDEX IF NOT EXISTS idx_webauthn_cred_pegawai ON webauthn_credentials(peg
 
 -- =====================================================
 -- Seed Data: Akun Admin Default
--- Password: admin (di aplikasi nyata, gunakan mekanisme lebih aman)
+-- NIK: ADM001
+-- Password: admin123 (hash SHA-256)
 -- =====================================================
-INSERT OR IGNORE INTO pegawai (id, nama, nik, role, departemen, email)
-VALUES ('admin-001', 'Administrator', 'ADM001', 'admin', 'IT', 'admin@perusahaan.com');
+INSERT OR IGNORE INTO pegawai (id, nama, nik, password_hash, role, departemen, email)
+VALUES ('admin-001', 'Administrator', 'ADM001', '240be518fabd2724ddb6f0403f35970f0c62c6d160b45b2171199a03f1cdfb95', 'admin', 'IT', 'admin@perusahaan.com');

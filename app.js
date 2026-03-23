@@ -141,53 +141,33 @@ async function apiCall(path, method = 'GET', body = null, isFormData = false) {
 // WEBAUTHN - LOGIN BIOMETRIK
 // ============================================================
 async function loginBiometrik() {
+// ... (tetap ada)
+}
+
+// ============================================================
+// LOGIN TRADISIONAL (NIK + PASSWORD)
+// ============================================================
+async function loginTradisional() {
   const nik = document.getElementById('login-nik').value.trim()
-  if (!nik) { tampilkanToast('Masukkan NIK terlebih dahulu', 'warn'); return }
+  const password = document.getElementById('login-password').value.trim()
 
-  tampilkanLoading('Memverifikasi biometrik...')
+  if (!nik || !password) { tampilkanToast('NIK dan Password wajib diisi', 'warn'); return }
+
+  tampilkanLoading('Sedang masuk...')
   try {
-    // 1. Minta challenge dari backend
-    const resBegin = await fetch('/api/webauthn/auth/begin', {
+    const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nik })
+      body: JSON.stringify({ nik, password })
     })
-    const opts = await resBegin.json()
-    if (opts.error) { tampilkanToast(opts.error, 'error'); return }
-
-    // 2. Panggil WebAuthn browser API
-    const assertion = await navigator.credentials.get({
-      publicKey: {
-        challenge: _base64ToUint8Array(opts.challenge),
-        timeout: opts.timeout,
-        rpId: opts.rpId,
-        userVerification: opts.userVerification,
-        allowCredentials: opts.allowCredentials?.map(c => ({
-          type: 'public-key',
-          id: _base64ToUint8Array(c.id)
-        })) || []
-      }
-    })
-
-    // 3. Kirim bukti ke backend
-    const credId = _uint8ArrayToBase64(new Uint8Array(assertion.rawId))
-    const resComplete = await fetch('/api/webauthn/auth/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nik, credential_id: credId, challenge: opts.challenge })
-    })
-    const hasil = await resComplete.json()
+    const hasil = await res.json()
     if (hasil.error) { tampilkanToast(hasil.error, 'error'); return }
 
     simpanSession(hasil.token, hasil.user)
     tampilkanToast(`Selamat datang, ${hasil.user.nama}! 👋`, 'success')
     navigasiKeDashboard()
   } catch (err) {
-    if (err.name === 'NotAllowedError') {
-      tampilkanToast('Autentikasi dibatalkan atau tidak diizinkan.', 'warn')
-    } else {
-      tampilkanToast(`Gagal login: ${err.message}`, 'error')
-    }
+    tampilkanToast('Error: ' + err.message, 'error')
   } finally {
     sembunyikanLoading()
   }
@@ -536,14 +516,15 @@ async function muatDaftarPegawai() {
 async function tambahPegawai() {
   const nama = document.getElementById('input-nama').value.trim()
   const nik = document.getElementById('input-nik').value.trim()
+  const password = prompt('Masukkan Password awal untuk ' + nama + ':') || 'password123'
   const departemen = document.getElementById('input-departemen').value.trim()
-  const email = document.getElementById('input-email').value.trim()
   const role = document.getElementById('input-role').value
 
   if (!nama || !nik) { tampilkanToast('Nama dan NIK wajib diisi!', 'warn'); return }
   tampilkanLoading('Menyimpan pegawai...')
   try {
-    const res = await apiCall('/api/admin/pegawai', 'POST', { nama, nik, departemen, email, role })
+    const res = await apiCall('/api/admin/pegawai', 'POST', { nama, nik, password, role, departemen })
+// ...
     if (res.error) { tampilkanToast(res.error, 'error'); return }
     tampilkanToast(`✅ ${res.message}`, 'success')
     document.getElementById('input-nama').value = ''
