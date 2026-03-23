@@ -1,0 +1,21 @@
+{
+  "name": "absensi-perja",
+  "version": "1.0.0",
+  "description": "Web APK Absensi Perja - Full Stack dengan Cloudflare Workers, D1, dan R2",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute absensi-db --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute absensi-db --remote --file=./schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.4.0",
+    "@simplewebauthn/server": "^10.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.65.0"
+  }
+}

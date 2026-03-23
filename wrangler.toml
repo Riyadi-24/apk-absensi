@@ -1,0 +1,25 @@
+name = "absensi-perja"
+main = "src/index.ts"
+compatibility_date = "2024-07-25"
+workers_dev = true
+
+# Arahkan file statis dari folder public ke Worker
+[site]
+bucket = "./public"
+
+# Binding ke D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "absensi-db"
+database_id = "GANTI_DENGAN_ID_D1_ANDA"
+# Dapatkan ID dengan menjalankan: npx wrangler d1 create absensi-db
+
+# Binding ke R2 Bucket
+[[r2_buckets]]
+binding = "FOTO_BUCKET"
+bucket_name = "absensi-photos"
+# Buat bucket dengan: npx wrangler r2 bucket create absensi-photos
+
+# Cron Trigger: Jalankan setiap hari tengah malam (UTC) untuk hapus data lama
+[triggers]
+crons = ["0 0 * * *"]

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1e293b" />
+  <meta name="description" content="Aplikasi Absensi Karyawan dengan Biometrik dan Deteksi Wajah" />
+  <title>Absensi Perja</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#3b82f6', dark: '#1d4ed8', light: '#93c5fd' },
+            admin: { DEFAULT: '#8b5cf6', dark: '#6d28d9', light: '#ddd6fe' },
+            success: '#22c55e',
+            danger: '#ef4444',
+            warn: '#f59e0b',
+          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Face-api.js -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #0f172a; }
+
+    /* Animasi masuk halaman */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-ring {
+      0%   { transform: scale(0.8); opacity: 0.8; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .animate-slide-up { animation: slideUp 0.4s ease forwards; }
+
+    .card { background: rgba(30,41,59,0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); }
+
+    /* Fingerprint pulse animation */
+    .fp-pulse::before {
+      content: '';
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%) scale(0.8);
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.4);
+      animation: pulse-ring 1.5s ease-out infinite;
+    }
+
+    /* Kamera overlay */
+    #face-overlay { position: absolute; inset: 0; pointer-events: none; }
+    #video-container { position: relative; border-radius: 1rem; overflow: hidden; }
+    video { width: 100%; height: auto; display: block; }
+
+    /* Status terlambat */
+    .badge-terlambat { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+    .badge-hadir     { background: rgba(34,197,94,0.2);  color: #86efac;  border: 1px solid rgba(34,197,94,0.4); }
+    .badge-lembur    { background: rgba(245,158,11,0.2); color: #fde68a;  border: 1px solid rgba(245,158,11,0.4); }
+
+    /* Scroll tipis */
+    ::-webkit-scrollbar { width: 4px; } 
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+    /* Tab active */
+    .tab-btn.active { background: #3b82f6; color: white; }
+
+    /* Admin sidebar mobile */
+    .nav-dot.active { background: #3b82f6; }
+  </style>
+</head>
+<body class="min-h-screen text-white">
+
+  <!-- BACKGROUND GRADIENT -->
+  <div class="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 -z-10"></div>
+  <div class="fixed top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -z-10"></div>
+  <div class="fixed bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
+
+  <!-- ========================= -->
+  <!-- HALAMAN LOGIN             -->
+  <!-- ========================= -->
+  <div id="page-login" class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm animate-slide-up">
+      <!-- Logo -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-2xl mb-4">
+          <svg class="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-extrabold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Absensi Perja</h1>
+        <p class="text-slate-400 text-sm mt-1">Sistem Absensi Biometrik Digital</p>
+      </div>
+
+      <!-- Form Login -->
+      <div class="card rounded-2xl p-6 shadow-2xl space-y-4">
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">NIK Karyawan</label>
+          <input id="login-nik" type="text" maxlength="20" placeholder="Masukkan NIK Anda..."
+            class="mt-1.5 w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+        </div>
+
+        <!-- Tombol Login dengan Sidik Jari -->
+        <button id="btn-login-biometrik" onclick="app.loginBiometrik()"
+          class="relative w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-blue-500/25 active:scale-95">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 6.65c.22.18.25.5.07.72-.18.22-.5.25-.72.07-2.86-2.36-6.52-2.35-9.25-.01C7 7.13 6.08 7.77 5.15 9.5c-.84 1.5-2.31 3.48-1.65 0zm4.96 12.09c-.1 0-.2-.03-.29-.09-1.6-1.13-2.94-2.65-3.92-4.48C3.35 15.15 3 13.12 3 11c0-2.76 2.93-5.06 6.53-5.06 2.24 0 4.29.81 5.56 2.17 1.21 1.3 1.78 2.99 1.55 4.65-.09.66-.32 1.3-.68 1.87-.71 1.12-1.84 1.79-3.07 1.87-1.56.1-3.05-.78-3.72-2.26-.22-.47-.3-.97-.24-1.47.12-.94.7-1.78 1.57-2.27.46-.26 1.08.09 1.08.62 0 .27-.14.52-.38.65-.56.31-.94.82-1.02 1.4-.04.34 0 .67.12.98.43 1 1.44 1.62 2.5 1.55.87-.06 1.65-.54 2.13-1.33.26-.41.42-.87.48-1.34.17-1.28-.28-2.6-1.24-3.63-1.05-1.13-2.78-1.8-4.65-1.8C6.04 7.94 4 9.93 4 11c0 1.93.31 3.77 1.16 5.37.87 1.62 2.07 2.98 3.52 4 .23.16.28.47.12.7-.1.14-.25.21-.41.21l.07-.27zm10.78-5.58c-.1 0-.2-.03-.29-.09-1.16-.82-2.07-1.76-2.69-2.8l-.06-.1c-.55-.94-.9-2.06-.9-3.15v-1.5c0-.28.22-.5.5-.5s.5.22.5.5V10c0 .89.29 1.83.77 2.62l.06.1c.54.91 1.37 1.77 2.41 2.49.23.16.28.47.12.7-.1.14-.25.21-.41.21l-.01-.09z"/>
+          </svg>
+          Login dengan Sidik Jari
+        </button>
+
+        <div class="text-center text-slate-500 text-xs">
+          Login terenkripsi degan WebAuthn. Tidak ada password yang disimpan.
+        </div>
+      </div>
+
+      <!-- Link Pendaftaran -->
+      <p class="text-center text-slate-400 text-sm mt-4">
+        Belum terdaftar? <button onclick="app.tampilkanRegistrasi()" class="text-blue-400 hover:text-blue-300 font-medium">Hubungi Admin</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- ========================= -->
+  <!-- HALAMAN KARYAWAN          -->
+  <!-- ========================= -->
+  <div id="page-karyawan" class="hidden min-h-screen flex flex-col">
+    <!-- Header Karyawan -->
+    <header class="card border-b border-white/10 px-4 py-3 sticky top-0 z-40 backdrop-blur-xl">
+      <div class="flex items-center justify-between max-w-lg mx-auto">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold" id="karyawan-avatar">K</div>
+          <div>
+            <p class="text-xs text-slate-400">Selamat datang,</p>
+            <p class="text-sm font-semibold leading-tight" id="karyawan-nama">Nama Karyawan</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-300 rounded-full border border-blue-500/30">Karyawan</span>
+          <button onclick="app.logout()" class="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 p-4 max-w-lg mx-auto w-full">
+
+      <!-- JAM & TANGGAL -->
+      <div class="card rounded-2xl p-4 mb-4 text-center">
+        <div class="text-4xl font-extrabold tracking-tight" id="jam-realtime">--:--:--</div>
+        <div class="text-slate-400 text-sm mt-1" id="tanggal-realtime">Senin, 01 Januari 2025</div>
+        <div id="status-absensi-hari-ini" class="mt-2 text-xs text-slate-500">Memuat status...</div>
+      </div>
+
+      <!-- KAMERA DETEKSI WAJAH -->
+      <div class="card rounded-2xl p-4 mb-4">
+        <h2 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0" /></svg>
+          Verifikasi Wajah
+        </h2>
+        <div id="video-container" class="bg-slate-900 rounded-xl overflow-hidden mb-3" style="min-height:200px;">
+          <video id="video-kamera" autoplay muted playsinline class="w-full rounded-xl"></video>
+          <canvas id="face-overlay" class="absolute inset-0 w-full h-full"></canvas>
+        </div>
+        <div id="status-wajah" class="text-center text-sm text-slate-400 mb-3">Memuat kamera...</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="app.mulaiKamera()" class="text-sm py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 transition font-medium">
+            📷 Buka Kamera
+          </button>
+          <button onclick="app.ambilFoto()" id="btn-ambil-foto" disabled
+            class="text-sm py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition font-medium">
+            ✅ Ambil Foto
+          </button>
+        </div>
+        <!-- Preview foto yang diambil -->
+        <canvas id="canvas-preview" class="hidden mt-3 rounded-xl w-full"></canvas>
+      </div>
+
+      <!-- LOKASI GPS -->
+      <div class="card rounded-2xl p-4 mb-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Lokasi GPS
+            </h2>
+            <p id="lokasi-teks" class="text-xs text-slate-400 mt-0.5 truncate">Belum diambil</p>
+          </div>
+          <button onclick="app.ambilLokasi()" class="px-3 py-1.5 text-xs bg-green-500/20 text-green-300 rounded-lg border border-green-500/30 hover:bg-green-500/30 transition">
+            📍 Ambil
+          </button>
+        </div>
+      </div>
+
+      <!-- TOMBOL ABSENSI -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <button onclick="app.kirimAbsensi('masuk')"
+          class="flex flex-col items-center justify-center gap-2 py-5 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 active:scale-95 transition-all shadow-lg shadow-green-900/30 font-semibold">
+          <span class="text-2xl">🟢</span>
+          <span>Absen Masuk</span>
+        </button>
+        <button onclick="app.kirimAbsensi('pulang')"
+          class="flex flex-col items-center justify-center gap-2 py-5 rounded-2xl bg-gradient-to-br from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 active:scale-95 transition-all shadow-lg shadow-red-900/30 font-semibold">
+          <span class="text-2xl">🔴</span>
+          <span>Absen Pulang</span>
+        </button>
+      </div>
+
+      <!-- RIWAYAT ABSENSI SAYA -->
+      <div class="card rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-slate-300">📋 Riwayat Saya</h2>
+          <button onclick="app.muatRiwayatSaya()" class="text-xs text-blue-400 hover:text-blue-300">Refresh</button>
+        </div>
+        <div id="riwayat-saya" class="space-y-2 max-h-60 overflow-y-auto text-sm text-slate-400 text-center py-4">
+          Memuat riwayat...
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========================= -->
+  <!-- HALAMAN ADMIN             -->
+  <!-- ========================= -->
+  <div id="page-admin" class="hidden min-h-screen flex flex-col">
+    <!-- Header Admin -->
+    <header class="card border-b border-white/10 px-4 py-3 sticky top-0 z-40 backdrop-blur-xl">
+      <div class="flex items-center justify-between max-w-4xl mx-auto">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center text-sm font-bold" id="admin-avatar">A</div>
+          <div>
+            <p class="text-xs text-slate-400">Dashboard Admin</p>
+            <p class="text-sm font-semibold" id="admin-nama">Administrator</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-1 text-xs font-medium bg-purple-500/20 text-purple-300 rounded-full border border-purple-500/30">Admin</span>
+          <button onclick="app.logout()" class="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigasi Admin -->
+    <nav class="card border-b border-white/10 px-4 py-2 sticky top-14 z-30">
+      <div class="flex gap-1 max-w-4xl mx-auto overflow-x-auto">
+        <button class="tab-btn active px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap" data-tab="dashboard" onclick="app.gotoTab('dashboard', this)">📊 Dashboard</button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap text-slate-400 hover:text-white" data-tab="absensi" onclick="app.gotoTab('absensi', this)">📋 Log Absensi</button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap text-slate-400 hover:text-white" data-tab="pegawai" onclick="app.gotoTab('pegawai', this)">👥 Data Pegawai</button>
+        <button class="tab-btn px-4 py-2 text-sm font-medium rounded-lg transition whitespace-nowrap text-slate-400 hover:text-white" data-tab="laporan" onclick="app.gotoTab('laporan', this)">📈 Laporan</button>
+      </div>
+    </nav>
+
+    <main class="flex-1 p-4 max-w-4xl mx-auto w-full">
+
+      <!-- TAB: DASHBOARD -->
+      <div id="tab-dashboard" class="tab-content">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div class="card rounded-2xl p-4">
+            <p class="text-xs text-slate-400 mb-1">Total Karyawan</p>
+            <p class="text-3xl font-extrabold text-white" id="stat-total">-</p>
+          </div>
+          <div class="card rounded-2xl p-4">
+            <p class="text-xs text-slate-400 mb-1">Hadir Hari Ini</p>
+            <p class="text-3xl font-extrabold text-green-400" id="stat-hadir">-</p>
+          </div>
+          <div class="card rounded-2xl p-4">
+            <p class="text-xs text-slate-400 mb-1">Terlambat</p>
+            <p class="text-3xl font-extrabold text-red-400" id="stat-terlambat">-</p>
+          </div>
+          <div class="card rounded-2xl p-4">
+            <p class="text-xs text-slate-400 mb-1">Belum Absen</p>
+            <p class="text-3xl font-extrabold text-yellow-400" id="stat-belum">-</p>
+          </div>
+        </div>
+        <!-- Info Tanggal -->
+        <div class="card rounded-2xl p-4 text-center">
+          <p class="text-sm text-slate-400">Hari ini:</p>
+          <p class="text-xl font-bold" id="admin-tanggal">-</p>
+          <div id="jam-admin" class="text-3xl font-extrabold text-blue-400 mt-1">--:--:--</div>
+        </div>
+      </div>
+
+      <!-- TAB: LOG ABSENSI -->
+      <div id="tab-absensi" class="tab-content hidden">
+        <div class="flex items-center gap-3 mb-4 flex-wrap">
+          <input type="date" id="filter-tanggal" class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button onclick="app.muatLogAbsensi()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-medium transition">Filter</button>
+          <button onclick="app.exportCSV()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm font-medium transition ml-auto">⬇ Export CSV</button>
+        </div>
+        <div id="tabel-absensi" class="space-y-2">
+          <div class="text-center text-slate-400 py-8">Pilih tanggal dan tekan Filter</div>
+        </div>
+      </div>
+
+      <!-- TAB: DATA PEGAWAI -->
+      <div id="tab-pegawai" class="tab-content hidden">
+        <!-- Form Tambah Pegawai -->
+        <div class="card rounded-2xl p-4 mb-4">
+          <h3 class="text-sm font-semibold text-slate-300 mb-3">➕ Tambah Pegawai Baru</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="input-nama" type="text" placeholder="Nama Lengkap *" class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="input-nik" type="text" placeholder="NIK / Nomor Induk *" class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="input-departemen" type="text" placeholder="Departemen" class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="input-email" type="email" placeholder="Email" class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <select id="input-role" class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="karyawan">Karyawan</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button onclick="app.tambahPegawai()" class="mt-3 w-full py-2.5 bg-green-600 hover:bg-green-500 rounded-xl text-sm font-semibold transition active:scale-95">
+            Simpan Pegawai
+          </button>
+        </div>
+
+        <!-- Daftar Pegawai -->
+        <div id="daftar-pegawai" class="space-y-2">
+          <div class="text-center text-slate-400 py-8">Memuat data...</div>
+        </div>
+      </div>
+
+      <!-- TAB: LAPORAN -->
+      <div id="tab-laporan" class="tab-content hidden">
+        <div class="card rounded-2xl p-4 mb-4">
+          <h3 class="text-sm font-semibold text-slate-300 mb-3">📊 Rekap Absensi Per Periode</h3>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="text-xs text-slate-400">Dari Tanggal</label>
+              <input type="date" id="laporan-dari" class="mt-1 w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">Sampai Tanggal</label>
+              <input type="date" id="laporan-sampai" class="mt-1 w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <button onclick="app.muatLaporan()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-sm font-semibold transition">Tampilkan Laporan</button>
+        </div>
+        <div id="hasil-laporan" class="space-y-2">
+          <div class="text-center text-slate-400 py-8">Pilih periode dan tekan Tampilkan</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ========================= -->
+  <!-- TOAST NOTIFIKASI          -->
+  <!-- ========================= -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-xs w-full px-4 hidden">
+    <div id="toast-inner" class="rounded-2xl px-4 py-3 shadow-2xl text-sm font-medium text-center flex items-center gap-2 justify-center"></div>
+  </div>
+
+  <!-- ========================= -->
+  <!-- LOADING OVERLAY           -->
+  <!-- ========================= -->
+  <div id="loading" class="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm flex items-center justify-center hidden">
+    <div class="card rounded-2xl p-8 text-center">
+      <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+      <p class="text-sm text-slate-300" id="loading-teks">Memproses...</p>
+    </div>
+  </div>
+
+  <!-- Script Aplikasi -->
+  <script src="/app.js"></script>
+</body>
+</html>
